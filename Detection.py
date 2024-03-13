@@ -5,8 +5,9 @@ import time
 from insightface.app import FaceAnalysis
 import numpy as np
 from sort import Sort
-from funcs import convert_detections_to_bbs_format
-
+from funcs import convert_detections_to_bbs_format, add_ids_to_orig_if_matched, filename_to_date
+from object_tracker import ObjectTracker
+from random import randint
 
 
 
@@ -20,6 +21,7 @@ class VideoProcessor:
         self.group = f'group-{group}_ID'
         self.ids_dict = {}
         self.tracker = Sort(max_age=100, min_hits=8, iou_threshold=0.40)
+        self.obj_tracker = ObjectTracker()
 
 
     def process_video(self):
@@ -29,7 +31,7 @@ class VideoProcessor:
             return
 
         os.makedirs('screenshots', exist_ok=True)
-        number = 0
+        frame_count = 0
 
         try:
             while True:
@@ -41,38 +43,34 @@ class VideoProcessor:
                 frame = cv2.resize(frame, (1280, 720))
 
                 faces = self.app.get(frame)
-                #self.save_screenshot(frame, faces, number)
-                detections_list = convert_detections_to_bbs_format(faces)
+                for face in faces:
 
+                    x1, y1, x2, y2 = [int(value) for value in face['bbox']]
+                    screenshot = frame[y1-20:y2+20, x1-20:x2+20]
+                    face['screenshot'] = screenshot
+                    face['datetime'] = filename_to_date(self.camera_url, frame_count)
+
+                detections_list = convert_detections_to_bbs_format(faces)
 
                 if len(detections_list) == 0:
                     detections_list = np.empty((0, 5))
 
                 res = self.tracker.update(detections_list)
 
+                faces = add_ids_to_orig_if_matched(res, faces)
 
-                boxes_track = res[:, :-1]
-                boxes_ids = res[:, -1].astype(int)
-                anotation_frame = self.draw_rectangle(frame, faces)
-                anotation_frame = self.draw_bounding_boxes_with_id(anotation_frame, boxes_track, boxes_ids)
+                self.obj_tracker.update(faces, frame_count)
+                # anotation_frame = self.draw_rectangle(frame, faces)
+                #cv2.imshow(self.group, frame)
+                frame_count += 1
 
-
-                cv2.imshow(self.group, anotation_frame)
-                number += 1
-
-                if cv2.waitKey(0) & 0xFF == ord('q'):
+                if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
         finally:
+            self.obj_tracker.end_video()
             cap.release()
 
-    def draw_bounding_boxes_with_id(self, img, bboxes, ids):
-
-        for bbox, id_ in zip(bboxes, ids):
-            cv2.putText(img, "ID: " + str(id_), (int(bbox[0]), int(bbox[1] - 30)), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
-                        (0, 255, 0), 3)
-
-        return img
 
     def draw_rectangle(self, frame, faces):
         for face in faces:
@@ -82,7 +80,6 @@ class VideoProcessor:
                 # Рисуем прямоугольник вокруг лица
                 x1, y1, x2, y2 = [int(value) for value in face['bbox']]
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
                 # Отрисовываем ключевые точки
                 for point in face['kps']:
                     x, y = int(point[0]), int(point[1])
@@ -90,7 +87,8 @@ class VideoProcessor:
 
                 # Отображаем det_score
                 det_score = face['det_score']
-                score_text = f"Score: {det_score:.2f}"
+                id = face['id']
+                score_text = f"{id}_Score: {det_score:.2f}"
                 cv2.putText(frame, score_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
         return frame
@@ -99,7 +97,8 @@ class VideoProcessor:
             if True:
                 #is_nose_inside(face) and face['det_score'] > 0.70
                 ls = [int(value) for value in face['bbox']]
-                screenshot = frame[ls[1]-10:ls[3]+10, ls[0]-10:ls[2]+10]
+                screenshot = frame[ls[1]:ls[3], ls[0]:ls[2]]
+
                 now = datetime.now()
                 filename = f'screenshots/group-2{number}-{indx}_{now.strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
                 if screenshot.size > 0:
@@ -109,15 +108,18 @@ class VideoProcessor:
                 else:
                     print(f"Пустой скриншот для ID, не сохранено.")
 
+
+
 if __name__ == "__main__":
     USERNAME = 'admin'
     PASSWORD = 'Babur2001'
     camera_url = f'rtsp://{USERNAME}:{PASSWORD}@192.168.0.119:554/Streaming/Channels/101'
-    video_url = '/home/stargroup/new/saved_videos/output_video_2024-03-10_11-16-28.avi'
+    #video_url = '/home/stargroup/new/saved_videos/output_video_2024-03-10_15-28-47.avi'
+    video_url = '/home/stargroup/new/saved_videos/output_video_2024-03-13_16-18-15.avi'
     group = 1
 
-    app = FaceAnalysis(providers=['CUDAExecutionProvider'])
-    app.prepare(ctx_id=0, det_size=(640, 640))
+    app = FaceAnalysis(providers=['CUDAExecutionProvider'], allowed_modules=['detection'])
+    app.prepare(ctx_id=0)
 
     processor = VideoProcessor(camera_url=video_url, group=group, app=app)
     processor.process_video()
