@@ -14,18 +14,18 @@ from random import randint
 
 
 class VideoProcessor:
-    def __init__(self, camera_url, group, app):
-        self.camera_url = camera_url
+    def __init__(self, video_url, group, app, app_emb):
+        self.video_url = video_url
         self.users = []
         self.app = app
         self.group = f'group-{group}_ID'
         self.ids_dict = {}
         self.tracker = Sort(max_age=100, min_hits=8, iou_threshold=0.40)
-        self.obj_tracker = ObjectTracker()
+        self.obj_tracker = ObjectTracker(max_age=50, app=app_emb)
 
 
     def process_video(self):
-        cap = cv2.VideoCapture(self.camera_url)
+        cap = cv2.VideoCapture(self.video_url)
         if not cap.isOpened():
             print("Не удалось подключиться к камере.")
             return
@@ -48,7 +48,7 @@ class VideoProcessor:
                     x1, y1, x2, y2 = [int(value) for value in face['bbox']]
                     screenshot = frame[y1-20:y2+20, x1-20:x2+20]
                     face['screenshot'] = screenshot
-                    face['datetime'] = filename_to_date(self.camera_url, frame_count)
+                    face['datetime'] = filename_to_date(self.video_url, frame_count)
 
                 detections_list = convert_detections_to_bbs_format(faces)
 
@@ -121,5 +121,5 @@ if __name__ == "__main__":
     app = FaceAnalysis(providers=['CUDAExecutionProvider'], allowed_modules=['detection'])
     app.prepare(ctx_id=0)
 
-    processor = VideoProcessor(camera_url=video_url, group=group, app=app)
+    processor = VideoProcessor(video_url=video_url, group=group, app=app)
     processor.process_video()

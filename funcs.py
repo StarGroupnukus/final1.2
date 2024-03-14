@@ -69,12 +69,3 @@ def filename_to_date(filename, frame_count):
 
 def save_screenshots(frames, time):
     pass
-
-def default_converter(obj):
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()  # Преобразование массивов NumPy в списки
-    elif isinstance(obj, np.float32):
-        return float(obj)  # Преобразование float32 в стандартный float
-    elif isinstance(obj, datetime):
-        return obj.isoformat()  # Преобразование datetime в строку ISO 8601
-    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")

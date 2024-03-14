@@ -1,7 +1,6 @@
 import json
 import os
 from pprint import pprint
-from funcs import default_converter
 import cv2
 import insightface
 from insightface.app import FaceAnalysis
@@ -10,12 +9,11 @@ import numpy as np
 from datetime import datetime, timedelta
 
 class ObjectTracker:
-    def __init__(self, max_age=50):
+    def __init__(self, max_age=50, app=None):
         self.objects = {}  # Словарь для хранения объектов
         self.max_age = max_age  # Максимальное количество кадров отсутствия объекта
         self.archive = {}  # Архив для хранения неактивных объектов
-        self.app = FaceAnalysis(providers=['CUDAExecutionProvider'])
-        self.app.prepare(ctx_id=0)
+        self.app = app
         self.detection = insightface.model_zoo.get_model('models/model.onnx', download=True)
 
 
