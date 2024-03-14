@@ -233,6 +233,7 @@ class Sort(object):
         i -= 1
         # remove dead tracklet
         if(trk.time_since_update > self.max_age):
+          #заглушка для функции
           self.trackers.pop(i)
     if(len(ret)>0):
       return np.concatenate(ret)
@@ -254,7 +255,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-"""if __name__ == '__main__':
+if __name__ == '__main__':
   # all train
   args = parse_args()
   display = args.display
@@ -313,4 +314,4 @@ def parse_args():
   print("Total Tracking took: %.3f seconds for %d frames or %.1f FPS" % (total_time, total_frames, total_frames / total_time))
 
   if(display):
-    print("Note: to get real runtime results run without the option: --display")"""
+    print("Note: to get real runtime results run without the option: --display")
