@@ -27,17 +27,30 @@ def check_and_select_file(directory_path, group, app, app_emb):
         video_file_path = os.path.join(directory_path, video_file)
 
         print(f"Выбран файл для обработки: {video_file_path}")
+
+        start_time = time.time()
         processor = VideoProcessor(video_url=video_file_path, group=group, app=app, app_emb=app_emb)
         processor.process_video()
+        print(time.time() - start_time)
         # Здесь можно добавить логику обработки файла
         # Например: process_file(latest_file_path)
 
 
 # Пример использования функции
 
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
-    directory_path = '/home/stargroup/new/saved_videos'
-    group = 2
+    directory_path = '/home/stargroup/new/camyolo/videos'
+    group = 'group-1'
     app = FaceAnalysis(providers=['CUDAExecutionProvider'], allowed_modules=['detection'])
     app.prepare(ctx_id=0)
     app_emb = FaceAnalysis(providers=['CUDAExecutionProvider'])

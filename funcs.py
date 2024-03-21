@@ -1,6 +1,14 @@
+import math
+import os
+import shutil
+import mimetypes
+
+import cv2
 import numpy as np
 import re
 from datetime import datetime, timedelta
+
+import requests
 
 
 def convert_detections_to_bbs_format(detections):
@@ -26,6 +34,26 @@ def convert_detections_to_bbs_format(detections):
         bbs.append([bbox[0], bbox[1], bbox[2], bbox[3], confidence])
     return np.array(bbs)
 
+def is_nose_inside(face):
+    if face["det_score"] >= 0.50:
+        # Получаем ключевые точки
+        kps = face['kps']
+        bbox = face['bbox']
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
+        area = width * height
+        x_left_eye, x_right_eye, y_right_eye = kps[0][0], kps[1][0], kps[1][1]
+        x_nose, y_nose = kps[2]
+        check = x_left_eye < x_nose < x_right_eye
+
+        return check, area
+    return False, 0
+
+
+
+def save_video(filename):
+    shutil.copy(filename, '/home/stargroup/new/saved_videos')
+
 
 def add_ids_to_orig_if_matched(sort, orig):
     matched_orig = []  # Список для хранения совпавших элементов с ID
@@ -37,6 +65,9 @@ def add_ids_to_orig_if_matched(sort, orig):
         best_distance = float('inf')
 
         for j, o in enumerate(orig):
+            if 'screenshot' not in o:
+                continue  # Пропустить объекты без ключа "screenshot"
+
             o_center = [(o['bbox'][0] + o['bbox'][2]) / 2, (o['bbox'][1] + o['bbox'][3]) / 2]  # Центр bbox из orig
 
             # Рассчитываем Евклидово расстояние между центрами
@@ -67,5 +98,36 @@ def filename_to_date(filename, frame_count):
         datetime_obj = datetime(year, month, day, hour, minute, second) + timedelta(seconds=int(frame_count/20))
         return datetime_obj
 
-def save_screenshots(frames, time):
-    pass
+def save_screenshots(frames, id, det_score):
+    filename = f"baza_screenshots/{str(id)}_{round(det_score, 2)}.jpg"
+    cv2.imwrite(filename, frames)
+    print('Saved screenshot', filename)
+def send_report(id, file_paths, time, score, status):
+
+    url = 'https://face2.cake-bumer.uz/api/reports2'
+    data = {
+        'group_id': '1',
+        'child_id': str(id),
+        'score': str(score),
+        'time': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'status': '1' if status else '0',
+    }
+    files_data = []
+
+    try:
+        for file_path in file_paths:
+            file_name = os.path.basename(file_path)
+            mime_type, _ = mimetypes.guess_type(file_name)
+            files_data.append(('images[]', (file_name, open(file_path, 'rb'), mime_type)))
+        files = tuple(files_data)
+
+        response = requests.post(url, data=data, files=files, headers={'Accept': 'application/json'})
+        print(response.status_code, response.text)
+    except Exception as e:
+        print(e)
+    finally:
+        for _, (filename, file, _) in files_data:
+            file.close()
+
+if __name__ == '__main__':
+    send_report(1, ['screenshots/1_1_88_2024-03-15-17-26-53.jpg', 'screenshots/1_1_88_2024-03-15-17-26-53.jpg'], datetime.now(), 0.59)

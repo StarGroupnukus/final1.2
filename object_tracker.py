@@ -7,7 +7,8 @@ from insightface.app import FaceAnalysis
 from random import randint
 import numpy as np
 from datetime import datetime, timedelta
-
+from insightfuncs import find_max_score_object, compare_embeddings, get_embeddings
+from funcs import send_report, save_screenshots
 class ObjectTracker:
     def __init__(self, max_age=50, app=None):
         self.objects = {}  # Словарь для хранения объектов
@@ -37,10 +38,12 @@ class ObjectTracker:
         obj_data = obj_data['data']
         screenshots = self.get_five_screenshots_emb(obj_data)
         if screenshots:
-            self.objects[obj_id]['embedding'] = screenshots
+            self.objects[obj_id]['data'] = screenshots
             for id, obj in self.archive.items():
-                print(obj.keys())
-                if self.compare_embeddings(obj['embedding'], self.objects[obj_id]['embedding']):
+                #print(obj.keys())
+                obj_embeddings = [obj_one['embedding'] for obj_one in obj['data']]
+                sel_embeddings = [obj_one['embedding'] for obj_one in self.objects[obj_id]['data']]
+                if self.compare_embeddings(obj_embeddings, sel_embeddings):
                     print(3, obj_id)
                     return 3, id
             print(2, obj_id)
@@ -52,6 +55,7 @@ class ObjectTracker:
         to_delete = []
         for obj_id, obj_data in self.objects.items():
             if (frame_count - obj_data['last_seen']) > max_age:
+                #print(self.objects[obj_id])
                 is_unique, id = self.check_uniqueness(obj_id, obj_data)
                 if is_unique == 2:
                     sorted_obj = sorted(self.objects[obj_id]['data'], key=lambda x: x['det_score'], reverse=True)[:5]
@@ -60,51 +64,71 @@ class ObjectTracker:
                 elif is_unique == 3:
                     sorted_objects = sorted(obj_data['data'], key=lambda x: x['det_score'], reverse=True)[:5]
                     self.archive[id]['data'].extend(sorted_objects)
-                    self.archive[id]['embedding'].extend(obj_data['embedding'])
+                    #self.archive[id]['embedding'].extend(obj_data['embedding'])
                 to_delete.append(obj_id)
         return to_delete
 
 
-
     def get_five_screenshots_emb(self, obj_data):
-        if len(obj_data) < 5:
-            return False
+        len_obj_data = len(obj_data)
+        if len_obj_data < 5:
+            sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)
+        elif len_obj_data > 50:
+        # Сортировка объектов по det_score в убывающем порядке
+            sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)[:15]
         else:
-            # Сортировка объектов по det_score в убывающем порядке
-            sorted_objects = sorted(obj_data, key=lambda x: x['det_score'], reverse=True)
+            sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)[:5]
+        print(sorted_objects)
+        # Извлечение 5 снимков с наивысшими значениями det_score
+        top_5_screenshots = [obj['screenshot'] for obj in sorted_objects]
+        face_embeddings = []
+        for indx, screenshot in enumerate(top_5_screenshots):
+            try:
+                face_embedding = self.app.get(screenshot)[0]['embedding']
+                obj_data[indx]['embedding'] = face_embedding
+                face_embeddings.append(obj_data[indx])
+                print('лицо найдено')
+            except Exception as e:
+                print(f'нет лица| Exception -> {e}')
+                #obj_data.pop(indx)
+        if len(face_embeddings) > 0:
+            #print(f'data - > {obj_data.keys()}')
+            return face_embeddings
+        else:
+            return False
 
-            # Извлечение 5 снимков с наивысшими значениями det_score
-            top_5_screenshots = [obj['screenshot'] for obj in sorted_objects[:5]]
-            face_embeddings = []
-            for indx, screenshot in enumerate(top_5_screenshots):
-                try:
-
-                    face_embedding = self.app.get(screenshot)[0]['embedding']
-                    face_embeddings.append(face_embedding)
-                    print('лицо найдено')
-                except Exception as e:
-                    print(f'нет лица| Exception -> {e}')
-
-            if len(face_embeddings) > 0:
-                return face_embeddings
-            else:
-                return False
-
-    def end_video(self):
+    def end_video(self, group):
+        is_person = False
         self.to_delete(frame_count=12000, max_age=-99999)
         for obj_id, obj_data in self.archive.items():
-            data, embeddings = obj_data['data'], obj_data['embedding']
-            sort_data = sorted(data, key=lambda x: x['det_score'], reverse=True)[:3]
-            for elem in sort_data:
-                filename = f'screenshots/{elem["id"]}_{obj_id}_{round(elem["det_score"], 2)}_{elem["datetime"].strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
-                print(filename)
-                os.makedirs(os.path.dirname(filename), exist_ok=True)
-                cv2.imwrite(filename, elem['screenshot'])
+            send_files = []
+            data = obj_data['data']
+            embeddings = [obj['embedding'] for obj in data]
+            #sort_data = sorted(data, key=lambda x: x['det_score'], reverse=True)[:3]
+            baza_embeddings = get_embeddings('baza.json')
+            res = compare_embeddings(baza_embeddings=baza_embeddings, list_embeddings=embeddings, comp_group=group)
+            print(res)
+            final = find_max_score_object(res)
+            score = final['score']
+            child_id = final['child_id']
+            status = final['status']
+            id_known = final['emb_index']
+            image = data[id_known]
+            filename = f'screenshots/{image["id"]}_{score}_{child_id}_{image["datetime"].strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
+            is_person = True
+            cv2.imwrite(filename, image['screenshot'])
+            send_files.append(filename)
+            print(filename)
+            #os.makedirs(os.path.dirname(filename), exist_ok=True)
+            send_report(child_id.split('-')[1], send_files, data[0]['datetime'], score, status)
+
+        self.archive.clear()
+        return is_person
 
     def compare_embeddings(self, embeddings1, embeddings2):
         for embeddind1 in embeddings1:
             for embeddind2 in embeddings2:
-                if self.detection.compute_sim(embeddind1, embeddind2) > 0.4:
+                if self.detection.compute_sim(embeddind1, embeddind2) > 0.5:
                     return True
         return False
 
