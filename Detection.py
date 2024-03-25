@@ -43,7 +43,7 @@ class VideoProcessor:
 
                 # if frame_count % 2 != 0:
                 #     continue
-                frame = cv2.resize(frame, (1280, 720))
+                #frame = cv2.resize(frame, (1280, 720))
                 frame_copy = frame.copy()
                 faces = self.app.get(frame)
                 filtered_faces = []
@@ -59,7 +59,6 @@ class VideoProcessor:
 
                 # Заменяем список faces на отфильтрованный список лиц
                 faces = filtered_faces
-
 
                 detections_list = convert_detections_to_bbs_format(faces)
 
@@ -77,7 +76,7 @@ class VideoProcessor:
                 # anotation_frame = self.draw_rectangle(anotation_frame, faces)
                 # cv2.imshow(self.video_url, anotation_frame)
 
-                if cv2.waitKey(0) & 0xFF == ord('q'):
+                if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
         finally:
@@ -109,7 +108,6 @@ if __name__ == "__main__":
     USERNAME = 'admin'
     PASSWORD = 'Babur2001'
     camera_url = f'rtsp://{USERNAME}:{PASSWORD}@192.168.0.119:554/Streaming/Channels/101'
-    #video_url = '/home/stargroup/new/saved_videos/output_video_2024-03-10_15-28-47.avi'
     video_url = '/home/stargroup/new/saved_videos/output_video_2024-03-18_13-41-26.avi'
     group = 'group-1'
 

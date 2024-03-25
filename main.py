@@ -10,7 +10,7 @@ def check_and_select_file(directory_path, group, app, app_emb):
     files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
 
     # Фильтруем список, оставляя только файлы, подходящие под шаблон
-    video_files = [f for f in files if f.startswith('output_video_') and f.endswith('.avi')]
+    video_files = [f for f in files if f.startswith('output_video_') ]
 
     # Проверяем, есть ли минимум два таких файла
     if len(video_files) < 2:
@@ -37,12 +37,6 @@ def check_and_select_file(directory_path, group, app, app_emb):
 
 
 # Пример использования функции
-
-
-
-
-
-
 
 
 

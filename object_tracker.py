@@ -9,6 +9,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from insightfuncs import find_max_score_object, compare_embeddings, get_embeddings
 from funcs import send_report, save_screenshots
+
 class ObjectTracker:
     def __init__(self, max_age=50, app=None):
         self.objects = {}  # Словарь для хранения объектов
@@ -78,7 +79,7 @@ class ObjectTracker:
             sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)[:15]
         else:
             sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)[:5]
-        print(sorted_objects)
+        #print(sorted_objects)
         # Извлечение 5 снимков с наивысшими значениями det_score
         top_5_screenshots = [obj['screenshot'] for obj in sorted_objects]
         face_embeddings = []

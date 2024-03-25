@@ -49,6 +49,17 @@ def is_nose_inside(face):
         return check, area
     return False, 0
 
+def sort_by_angle(objects):
+    new_objects = []
+    sort_objects = sorted(objects, key=lambda x: (x["det_score"]), reverse=True)
+    for obj in sort_objects:
+        if True:
+            new_objects.append(obj)
+            if len(new_objects) > 5:
+                return new_objects
+    if len(new_objects) == 0:
+        return sort_objects[:5]
+
 
 
 def save_video(filename):

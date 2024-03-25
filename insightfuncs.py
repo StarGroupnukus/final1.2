@@ -48,7 +48,7 @@ def convert_numpy(obj):
 def compare_embeddings(baza_embeddings, list_embeddings, comp_group):
     results = {}
     for group, group_data in baza_embeddings.items():
-        print("Group",group, "ComP_group",comp_group)
+        print("Group",group, "ComP_group", comp_group)
         results[group] = {}
         for i, compare_embedding in enumerate(list_embeddings):
             if group == comp_group:
