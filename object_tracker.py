@@ -107,17 +107,39 @@ class ObjectTracker:
             child_id = final['child_id']
             status = final['status']
             id_known = final['emb_index']
-            image = data[id_known]
-            filename = f'screenshots/{image["id"]}_{score}_{child_id}_{image["datetime"].strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
+
+
+
+
+
+            # def end_video(self):
+            #     self.to_delete(frame_count=12000, max_age=-99999)
+            #     for obj_id, obj_data in self.archive.items():
+            #         data, embeddings = obj_data['data'], obj_data['embedding']
+            #         sort_data = sorted(data, key=lambda x: x['det_score'], reverse=True)[:3]
+            #         for elem in sort_data:
+            #             filename = f'screenshots/{elem["id"]}_{obj_id}_{round(elem["det_score"], 2)}_{elem["datetime"].strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
+            #             print(filename)
+            #             os.makedirs(os.path.dirname(filename), exist_ok=True)
+            #             cv2.imwrite(filename, elem['screenshot'])
+
+
+
+
+
+            images = data
+            #filename = f'screenshots/{image["id"]}_{score}_{child_id}_{image["datetime"].strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
             is_person = True
             try:
-                # directory = os.path.dirname(filename)
-                # if not os.path.exists(directory):
-                #     os.makedirs(directory, exist_ok=True)
-                # cv2.imwrite(filename, image)
-                send_files.append(filename)
-                os.makedirs(os.path.dirname(filename), exist_ok=True)
-                cv2.imwrite(filename, image['screenshot'])
+                for image in images:
+                    filename = f'screenshots/{obj_id}_{id_known}/{randint(1, 100)}_{score}_{child_id}_{image["datetime"].strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
+                    directory = os.path.dirname(filename)
+                    if not os.path.exists(directory):
+                        os.makedirs(directory, exist_ok=True)
+                    cv2.imwrite(filename, image['screenshot'])
+                    send_files.append(filename)
+                    # os.makedirs(os.path.dirname(filename), exist_ok=True)
+                    # cv2.imwrite(filename, image['screenshot'])
                 send_report(child_id.split('-')[1], send_files, data[0]['datetime'], score, status)
             except Exception as e:
                 print(e)
