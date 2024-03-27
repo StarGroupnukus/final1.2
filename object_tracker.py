@@ -8,7 +8,7 @@ from random import randint
 import numpy as np
 from datetime import datetime, timedelta
 from insightfuncs import find_max_score_object, compare_embeddings, get_embeddings
-from funcs import send_report, save_screenshots
+from funcs import send_report, sort_by_angle
 
 class ObjectTracker:
     def __init__(self, max_age=50, app=None):
@@ -71,19 +71,16 @@ class ObjectTracker:
 
 
     def get_five_screenshots_emb(self, obj_data):
-        len_obj_data = len(obj_data)
-        if len_obj_data < 5:
-            sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)
-        elif len_obj_data > 50:
-        # Сортировка объектов по det_score в убывающем порядке
-            sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)[:15]
-        else:
-            sorted_objects = sorted(obj_data, key=lambda x: (x["det_score"]), reverse=True)[:5]
+
+        sorted_objects = sort_by_angle(obj_data)
         #print(sorted_objects)
         # Извлечение 5 снимков с наивысшими значениями det_score
+        if not sorted_objects:
+            return False
         top_5_screenshots = [obj['screenshot'] for obj in sorted_objects]
         face_embeddings = []
         for indx, screenshot in enumerate(top_5_screenshots):
+            #cv2.imshow('screenshot', screenshot)
             try:
                 face_embedding = self.app.get(screenshot)[0]['embedding']
                 obj_data[indx]['embedding'] = face_embedding
@@ -91,9 +88,7 @@ class ObjectTracker:
                 print('лицо найдено')
             except Exception as e:
                 print(f'нет лица| Exception -> {e}')
-                #obj_data.pop(indx)
         if len(face_embeddings) > 0:
-            #print(f'data - > {obj_data.keys()}')
             return face_embeddings
         else:
             return False
@@ -105,10 +100,8 @@ class ObjectTracker:
             send_files = []
             data = obj_data['data']
             embeddings = [obj['embedding'] for obj in data]
-            #sort_data = sorted(data, key=lambda x: x['det_score'], reverse=True)[:3]
             baza_embeddings = get_embeddings('baza.json')
             res = compare_embeddings(baza_embeddings=baza_embeddings, list_embeddings=embeddings, comp_group=group)
-            print(res)
             final = find_max_score_object(res)
             score = final['score']
             child_id = final['child_id']
@@ -117,11 +110,17 @@ class ObjectTracker:
             image = data[id_known]
             filename = f'screenshots/{image["id"]}_{score}_{child_id}_{image["datetime"].strftime("%Y-%m-%d-%H-%M-%S")}.jpg'
             is_person = True
-            cv2.imwrite(filename, image['screenshot'])
-            send_files.append(filename)
-            print(filename)
-            #os.makedirs(os.path.dirname(filename), exist_ok=True)
-            send_report(child_id.split('-')[1], send_files, data[0]['datetime'], score, status)
+            try:
+                # directory = os.path.dirname(filename)
+                # if not os.path.exists(directory):
+                #     os.makedirs(directory, exist_ok=True)
+                # cv2.imwrite(filename, image)
+                send_files.append(filename)
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
+                cv2.imwrite(filename, image['screenshot'])
+                send_report(child_id.split('-')[1], send_files, data[0]['datetime'], score, status)
+            except Exception as e:
+                print(e)
 
         self.archive.clear()
         return is_person

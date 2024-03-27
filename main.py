@@ -15,7 +15,7 @@ def check_and_select_file(directory_path, group, app, app_emb):
     # Проверяем, есть ли минимум два таких файла
     if len(video_files) < 2:
         print("В директории недостаточно файлов для обработки.")
-        time.sleep(50)
+        time.sleep(10)
         return
 
     # Сортируем файлы по дате создания, не включая самый первый
@@ -34,12 +34,6 @@ def check_and_select_file(directory_path, group, app, app_emb):
         print(time.time() - start_time)
         # Здесь можно добавить логику обработки файла
         # Например: process_file(latest_file_path)
-
-
-# Пример использования функции
-
-
-
 
 
 if __name__ == "__main__":

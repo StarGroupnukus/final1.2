@@ -7,9 +7,9 @@ import cv2
 import numpy as np
 import re
 from datetime import datetime, timedelta
-
+from face_turn import get_distance, distance_point_to_line, face_direction
 import requests
-
+from math import ceil
 
 def convert_detections_to_bbs_format(detections):
     """
@@ -49,17 +49,93 @@ def is_nose_inside(face):
         return check, area
     return False, 0
 
+
 def sort_by_angle(objects):
     new_objects = []
-    sort_objects = sorted(objects, key=lambda x: (x["det_score"]), reverse=True)
-    for obj in sort_objects:
-        if True:
+    objects = sorted(objects, key=lambda x: x['det_score'], reverse=True)
+    for obj in objects:
+        kps = obj['kps']
+        direction = get_face_direction(kps)
+        if direction[0] and direction[1] < 1 and direction[2] < 1:
             new_objects.append(obj)
-            if len(new_objects) > 5:
+            if len(new_objects) > 15:
+                print(f'Sorting {len(new_objects)}')
                 return new_objects
     if len(new_objects) == 0:
-        return sort_objects[:5]
+        print(f'No faces detected')
+        #return None
+        return sorted(objects, key=lambda x: x['det_score'], reverse=True)[:10]
+    else:
+        print(f'Sort by angle: {len(new_objects)}')
+        return new_objects
 
+
+def get_face_direction(kps):
+    right_eye = kps[1]
+    left_eye = kps[0]
+    nose = kps[2]
+    right_lip = kps[3]
+    left_lip = kps[4]
+    r_x, r_y = right_eye[0], right_eye[1]
+    l_x, l_y = left_eye[0], left_eye[1]
+    n_x, n_y = nose[0], nose[1]
+
+    dX = r_x - l_x
+    dY = r_y - l_y
+    dist_norm = np.sqrt((dX ** 2) + (dY ** 2))
+
+    dX = l_x - n_x
+    dY = l_y - n_y
+    dist_left = np.sqrt((dX ** 2) + (dY ** 2))
+
+    dX = r_x - n_x
+    dY = r_y - n_y
+    dist_right = np.sqrt((dX ** 2) + (dY ** 2))
+
+    # Normalized Features-distances
+    left_distance = dist_left / dist_norm
+    right_distance = dist_right / dist_norm
+    # r_n_distance = math.sqrt((n_x - r_x) ** 2 + (n_y - r_y) ** 2)
+    # l_n_distance = math.sqrt((n_x - l_x) ** 2 + + (n_y - l_y) ** 2)
+    # return input_right, input_left
+    x0, y0 = nose
+    x1, y1 = right_lip
+    x2, y2 = left_lip
+    distance=0
+    # Вычисление длин отрезков
+    dx = x2 - x1
+    dy = y2 - y1
+
+    # Проверка, если отрезок вырожденный
+    if dx == dy == 0:
+        distance= math.hypot(x0 - x1, y0 - y1)
+
+    # Параметры уравнения прямой
+    t = ((x0 - x1) * dx + (y0 - y1) * dy) / (dx * dx + dy * dy)
+
+    # Проверка, если точка за пределами отрезка
+    if t < 0:
+        distance= math.hypot(x0 - x1, y0 - y1)
+    elif t > 1:
+        distance= math.hypot(x0 - x2, y0 - y2)
+
+    # Координаты ближайшей точки на прямой
+    x_closest = x1 + t * dx
+    y_closest = y1 + t * dy
+
+    # Расстояние от точки до ближайшей точки на прямой
+    distance = math.hypot(x0 - x_closest, y0 - y_closest)
+    if right_distance >= 1 > left_distance:
+        # return 'right'
+        return False,0,0
+    elif left_distance >= 1 > right_distance:
+        # return 'left'
+        return False,0,0
+    elif ceil(distance) < 5 or right_distance >=1 >left_distance or left_distance >=1 >right_distance:
+        # return 'down'
+        return False,0,0
+    else:
+        return True,round(right_distance,2),round(left_distance,2)
 
 
 def save_video(filename):
@@ -109,10 +185,7 @@ def filename_to_date(filename, frame_count):
         datetime_obj = datetime(year, month, day, hour, minute, second) + timedelta(seconds=int(frame_count/20))
         return datetime_obj
 
-def save_screenshots(frames, id, det_score):
-    filename = f"baza_screenshots/{str(id)}_{round(det_score, 2)}.jpg"
-    cv2.imwrite(filename, frames)
-    print('Saved screenshot', filename)
+
 def send_report(id, file_paths, time, score, status):
 
     url = 'https://face2.cake-bumer.uz/api/reports2'
@@ -127,11 +200,22 @@ def send_report(id, file_paths, time, score, status):
 
     try:
         for file_path in file_paths:
-            file_name = os.path.basename(file_path)
-            mime_type, _ = mimetypes.guess_type(file_name)
-            files_data.append(('images[]', (file_name, open(file_path, 'rb'), mime_type)))
+            print('file path',file_path)
+            print("is file exits->",os.path.exists(file_path))
+            if os.path.exists(file_path):
+                file_name = os.path.basename(file_path)
+                print('file name->', file_name)
+                mime_type, _ = mimetypes.guess_type(file_name)
+                files_data.append(('images[]', (file_name, open(file_path, 'rb'), mime_type)))
+            else:
+                print(f"Файл {file_path} не существует.")
+        # for file_path in file_paths:
+        #     file_name = os.path.basename(file_path)
+        #     print('file name->', file_name)
+        #     mime_type, _ = mimetypes.guess_type(file_name)
+        #     files_data.append(('images[]', (file_name, open(file_path, 'rb'), mime_type)))
+        print('Files->', files_data)
         files = tuple(files_data)
-
         response = requests.post(url, data=data, files=files, headers={'Accept': 'application/json'})
         print(response.status_code, response.text)
     except Exception as e:
