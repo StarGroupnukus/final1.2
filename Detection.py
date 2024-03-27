@@ -98,7 +98,7 @@ class VideoProcessor:
                 area = face['area']
                 score_text = f"{id}_{area}: {det_score:.2f}"
                 cv2.putText(frame, score_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
-
+        cv2.rectangle(frame, (300, 100), (1000, 500), (0, 0, 0), 3)
         return frame
 
 

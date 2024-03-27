@@ -44,9 +44,12 @@ def is_nose_inside(face):
         area = width * height
         x_left_eye, x_right_eye, y_right_eye = kps[0][0], kps[1][0], kps[1][1]
         x_nose, y_nose = kps[2]
-        check = x_left_eye < x_nose < x_right_eye
+        if 300 < x_nose < 1000 and 100 < y_nose < 500:
 
-        return check, area
+            check = x_left_eye < x_nose < x_right_eye
+
+            return check, area
+
     return False, 0
 
 
